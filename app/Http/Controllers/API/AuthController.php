@@ -2,55 +2,51 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\BaseController;
+use App\Http\Requests\UserLoginRequest;
+use App\Http\Requests\UserRegisterRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
-class AuthController extends Controller
+class AuthController extends BaseController
 {
     /**
-     * @param Request $request
+     * @param UserRegisterRequest $request
      * @return JsonResponse
-     * @throws \Illuminate\Validation\ValidationException
      */
-    public function register(Request $request): JsonResponse
+    public function register(UserRegisterRequest $request): JsonResponse
     {
-        $this->validate($request,[
-            'name' => 'required',
-            'email' => 'required|email|unique:users',
-            'password' => 'required|min:8',
-        ]);
-
-        $user= User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password)
-        ]);
-
+        $user = User::create($request->validated());
         $token = $user->createToken("passport")->access_token;
-        return response()->json(['Bearer' => $token]);
+        return $this->sendResponse(
+            ['Bearer' => $token],
+            "Successful",
+            Response::HTTP_OK
+        );
     }
 
     /**
-     * @param Request $request
+     * @param UserLoginRequest $request
      * @return JsonResponse
      */
-    public function login(Request $request): JsonResponse
+    public function login(UserLoginRequest $request): JsonResponse
     {
-        $credentials = [
-            'email' => $request->email,
-            'password' => $request->password,
-        ];
 
-        if(auth()->attempt($credentials))
+        if(auth()->attempt($request->validated()))
         {
             $token = auth()->user()->createToken("passport")->accessToken;
-            return response()->json(['Bearer' => $token]);
+            return $this->sendResponse(
+                ['Bearer' => $token],
+                "Successful",
+                Response::HTTP_OK
+            );
         }
-        else
-        {
-            return response()->json(['error' => 'UnAuthorised Access'], 401);
-        }
+
+        return $this->sendResponse(
+            null,
+            "Unauthorised Access",
+            Response::HTTP_UNAUTHORIZED
+        );
     }
 }
